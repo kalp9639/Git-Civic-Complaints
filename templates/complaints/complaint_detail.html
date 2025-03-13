@@ -28,6 +28,7 @@
         <div class="row">
           <div class="col-md-6">
             <p class="mb-2"><strong>Submitted By:</strong> {{ complaint.user.get_full_name|default:complaint.user.username }}</p>
+            <p class="mb-2"><strong>Contact:</strong> {{ complaint.user.profile.mobile_number }}</p>
           </div>
           <div class="col-md-6 text-md-end">
             <p class="mb-0"><strong>Date:</strong> {{ complaint.created_at|date:"F j, Y, g:i a" }}</p>

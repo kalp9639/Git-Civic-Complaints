@@ -13,6 +13,7 @@ from .forms import SignUpForm, UserUpdateForm
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth import update_session_auth_hash
 from .forms import SignUpForm, UserUpdateForm, PasswordChangeForm
+from .models import UserProfile
 
 
 class HomeView(TemplateView):
@@ -44,6 +45,14 @@ class SignUpView(FormView):
     
     def form_valid(self, form):
         user = form.save()
+        
+        # Set the mobile number in the user profile if provided
+        mobile_number = form.cleaned_data.get('mobile_number')
+        if mobile_number:
+            profile, created = UserProfile.objects.get_or_create(user=user)
+            profile.mobile_number = mobile_number
+            profile.save()
+        
         username = form.cleaned_data.get('username')
         raw_password = form.cleaned_data.get('password1')
         user = authenticate(username=username, password=raw_password)
@@ -73,6 +82,13 @@ class ProfileView(View):
 class ProfileEditView(View):
     def get(self, request, *args, **kwargs):
         form = UserUpdateForm(instance=request.user)
+        
+        # Get or create profile for the user
+        profile, created = UserProfile.objects.get_or_create(user=request.user)
+        
+        # Set initial mobile number from profile if it exists
+        form.initial['mobile_number'] = profile.mobile_number
+        
         password_form = PasswordChangeForm(user=request.user)
         return render(request, 'edit_profile.html', {
             'form': form,
@@ -87,7 +103,15 @@ class ProfileEditView(View):
             password_form = PasswordChangeForm(user=request.user)
             
             if form.is_valid():
-                form.save()
+                user = form.save()
+                
+                # Get or create profile
+                profile, created = UserProfile.objects.get_or_create(user=user)
+                
+                # Update the profile's mobile number
+                profile.mobile_number = form.cleaned_data.get('mobile_number', '')
+                profile.save()
+                
                 messages.success(request, 'Your profile has been updated successfully.')
                 return redirect('profile')
                 
