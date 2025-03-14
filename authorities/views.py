@@ -118,7 +118,39 @@ class AuthorityComplaintsListView(ListView):
             return redirect('home')
     
     def get_queryset(self):
-        return Complaint.objects.filter(ward_number=self.official.ward_number)
+        queryset = Complaint.objects.filter(ward_number=self.official.ward_number)
+        
+        # Get filter parameters
+        complaint_type = self.request.GET.get('type')
+        status = self.request.GET.get('status')
+        sort = self.request.GET.get('sort', 'newest')
+        
+        # Apply filters if present
+        if complaint_type:
+            queryset = queryset.filter(complaint_type=complaint_type)
+        if status:
+            queryset = queryset.filter(status=status)
+        
+        # Apply sorting
+        if sort == 'oldest':
+            queryset = queryset.order_by('created_at')
+        else:  # default to newest
+            queryset = queryset.order_by('-created_at')
+            
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Add complaint types
+        context['complaint_types'] = Complaint.COMPLAINT_TYPES
+        
+        # Get selected filters for template
+        context['selected_type'] = self.request.GET.get('type')
+        context['selected_status'] = self.request.GET.get('status') 
+        context['selected_sort'] = self.request.GET.get('sort', 'newest')
+        
+        return context
 
 
 @method_decorator(login_required, name='dispatch')
@@ -135,6 +167,23 @@ class AuthorityComplaintsMapView(View):
     
     def get(self, request, *args, **kwargs):
         complaints = Complaint.objects.filter(ward_number=self.official.ward_number)
+        
+        # Get filter parameters
+        complaint_type = request.GET.get('type')
+        status = request.GET.get('status')
+        sort = request.GET.get('sort', 'newest')
+        
+        # Apply filters if present
+        if complaint_type:
+            complaints = complaints.filter(complaint_type=complaint_type)
+        if status:
+            complaints = complaints.filter(status=status)
+        
+        # Apply sorting
+        if sort == 'oldest':
+            complaints = complaints.order_by('created_at')
+        else:  # default to newest
+            complaints = complaints.order_by('-created_at')
         
         # Prepare complaints data for map
         complaints_data = []
@@ -154,6 +203,10 @@ class AuthorityComplaintsMapView(View):
         context = {
             'complaints_data': json.dumps(complaints_data),
             'complaint_count': len(complaints_data),
+            'selected_type': complaint_type,
+            'selected_status': status,
+            'selected_sort': sort,
+            'complaint_types': Complaint.COMPLAINT_TYPES,
         }
         return render(request, self.template_name, context)
 
@@ -326,4 +379,3 @@ class ChangePasswordView(View):
             return redirect('authorities:authority_dashboard')
         
         return render(request, self.template_name, {'form': form})
-

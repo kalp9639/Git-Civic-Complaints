@@ -87,9 +87,61 @@ class ComplaintListView(ListView):
     model = Complaint
     template_name = 'complaints/view_complaints.html'
     context_object_name = 'complaints'
+    paginate_by = 9  # Show 9 complaints per page (3 rows of 3)
     
     def get_queryset(self):
-        return Complaint.objects.filter(user=self.request.user)
+        queryset = Complaint.objects.filter(user=self.request.user)
+        
+        # Apply filters if provided
+        complaint_type = self.request.GET.get('type')
+        status = self.request.GET.get('status')
+        ward = self.request.GET.get('ward')
+        
+        if complaint_type:
+            queryset = queryset.filter(complaint_type=complaint_type)
+        if status:
+            queryset = queryset.filter(status=status)
+        if ward:
+            queryset = queryset.filter(ward_number=ward)
+            
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Get all complaint types for the filter dropdown
+        complaint_types = Complaint._meta.get_field('complaint_type').choices
+        
+        # Get all unique wards for the filter dropdown
+        wards = Complaint.objects.filter(user=self.request.user).values_list('ward_number', flat=True)
+        wards = sorted(set([ward for ward in wards if ward]))  # Remove None/empty values
+        
+        # Pass the selected filter values back to the template
+        context['complaint_types'] = complaint_types
+        context['wards'] = wards
+        context['selected_type'] = self.request.GET.get('type', '')
+        context['selected_status'] = self.request.GET.get('status', '')
+        context['selected_ward'] = self.request.GET.get('ward', '')
+        
+        # Check if any filter is applied
+        context['filtered'] = any([
+            self.request.GET.get('type'),
+            self.request.GET.get('status'),
+            self.request.GET.get('ward')
+        ])
+        
+        # Create query params string for pagination links
+        query_params = []
+        if self.request.GET.get('type'):
+            query_params.append(f"type={self.request.GET.get('type')}")
+        if self.request.GET.get('status'):
+            query_params.append(f"status={self.request.GET.get('status')}")
+        if self.request.GET.get('ward'):
+            query_params.append(f"ward={self.request.GET.get('ward')}")
+        
+        context['query_params'] = '&'.join(query_params)
+        
+        return context
 
 
 @method_decorator(login_required, name='dispatch')
@@ -136,16 +188,35 @@ class MapView(View):
     template_name = 'complaints/map_view.html'
     
     def get(self, request, *args, **kwargs):
-        # Get all complaints with coordinates
-        complaints = Complaint.objects.filter(
+        # Start with all complaints for this user
+        complaints_query = Complaint.objects.filter(
             user=request.user, 
             latitude__isnull=False, 
             longitude__isnull=False
         )
         
+        # Apply filters if provided
+        complaint_type = request.GET.get('type')
+        status = request.GET.get('status')
+        ward = request.GET.get('ward')
+        
+        if complaint_type:
+            complaints_query = complaints_query.filter(complaint_type=complaint_type)
+        if status:
+            complaints_query = complaints_query.filter(status=status)
+        if ward:
+            complaints_query = complaints_query.filter(ward_number=ward)
+        
+        # Get all complaint types for the filter dropdown
+        complaint_types = Complaint._meta.get_field('complaint_type').choices
+        
+        # Get all unique wards for the filter dropdown
+        wards = Complaint.objects.filter(user=request.user).values_list('ward_number', flat=True)
+        wards = sorted(set([ward for ward in wards if ward]))  # Remove None/empty values
+        
         # Prepare complaints data for the map
         complaints_data = []
-        for complaint in complaints:
+        for complaint in complaints_query:
             complaints_data.append({
                 'id': complaint.id,
                 'lat': float(complaint.latitude),
@@ -158,10 +229,27 @@ class MapView(View):
                 'date': complaint.created_at.strftime('%Y-%m-%d %H:%M')
             })
         
-        # Pass the complaints data to the template
+        # Create query params string for pagination links (if needed later)
+        query_params = []
+        if request.GET.get('type'):
+            query_params.append(f"type={request.GET.get('type')}")
+        if request.GET.get('status'):
+            query_params.append(f"status={request.GET.get('status')}")
+        if request.GET.get('ward'):
+            query_params.append(f"ward={request.GET.get('ward')}")
+        
+        # Pass the complaints data and filters to the template
         context = {
             'complaints_data': json.dumps(complaints_data),
             'complaint_count': len(complaints_data),
+            'total_count': Complaint.objects.filter(user=request.user, latitude__isnull=False, longitude__isnull=False).count(),
+            'complaint_types': complaint_types,
+            'wards': wards,
+            'selected_type': request.GET.get('type', ''),
+            'selected_status': request.GET.get('status', ''),
+            'selected_ward': request.GET.get('ward', ''),
+            'filtered': any([complaint_type, status, ward]),
+            'query_params': '&'.join(query_params)
         }
         
         return render(request, self.template_name, context)

@@ -27,7 +27,8 @@
 {% endblock %}
 
 {% block content %}
-<div class="container mt-1">
+
+<div class="container mt-10">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Complaints Map</h1>
@@ -38,37 +39,46 @@
     </div>
     
     <!-- Filter controls -->
-    <div class="filter-controls">
-        <div class="row">
-            <div class="col-md-4 mb-2">
-                <label for="type-filter" class="form-label">Complaint Type:</label>
-                <select id="type-filter" class="form-select">
-                    <option value="all">All Types</option>
-                    <!-- Will be populated dynamically -->
-                </select>
-            </div>
-            <div class="col-md-4 mb-2">
-                <label for="status-filter" class="form-label">Status:</label>
-                <select id="status-filter" class="form-select">
-                    <option value="all">All Statuses</option>
-                    <option value="Pending">Pending</option>
-                    <option value="In Progress">In Progress</option>
-                    <option value="Resolved">Resolved</option>
-                </select>
-            </div>
-            <div class="col-md-4 mb-2">
-                <label for="ward-filter" class="form-label">Ward:</label>
-                <select id="ward-filter" class="form-select">
-                    <option value="all">All Wards</option>
-                    <!-- Will be populated dynamically -->
-                </select>
-            </div>
+    <div class="card mb-3">
+        <div class="card-body p-3">
+            <form id="filter-form" method="get" class="row g-2">
+                <div class="col-md-4">
+                    <select id="type-filter" name="type" class="form-select form-select">
+                        <option value="">All Types</option>
+                        {% for type_id, type_name in complaint_types %}
+                            <option value="{{ type_id }}" {% if selected_type == type_id %}selected{% endif %}>{{ type_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select id="status-filter" name="status" class="form-select form-select">
+                        <option value="">All Statuses</option>
+                        <option value="Pending" {% if selected_status == 'Pending' %}selected{% endif %}>Pending</option>
+                        <option value="In Progress" {% if selected_status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                        <option value="Resolved" {% if selected_status == 'Resolved' %}selected{% endif %}>Resolved</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <select id="ward-filter" name="ward" class="form-select form-select">
+                        <option value="">All Wards</option>
+                        {% for ward in wards %}
+                            <option value="{{ ward }}" {% if selected_ward == ward %}selected{% endif %}>{{ ward }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-1 d-flex">
+                    <a href="{% url 'map_view' %}" class="btn btn btn-secondary flex-grow-1">Reset</a>
+                </div>
+            </form>
         </div>
     </div>
     
     <!-- Map statistics -->
-    <div class="alert alert-info mb-3">
-        <strong>Total Complaints on Map:</strong> <span id="visible-count">{{ complaint_count }}</span> of {{ complaint_count }}
+    <div class="alert alert-info mb-4">
+        <strong>Total Complaints on Map:</strong> <span id="visible-count">{{ complaint_count }}</span> of {{ total_count }}
+        {% if filtered %}
+        <a href="{% url 'map_view' %}" class="ms-2 text-decoration-none">(Clear Filters)</a>
+        {% endif %}
     </div>
     
     <!-- Map container -->
@@ -82,7 +92,7 @@
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" 
     crossorigin=""></script>
 <script>
-    // Complaint data from the server
+    // Complaint data from the server (already filtered)
     const complaintsData = {{ complaints_data|safe }};
     
     // Initialize the map
@@ -96,10 +106,6 @@
     
     // Map for storing markers by complaint ID
     const markers = {};
-    
-    // Map for storing unique types and wards for filters
-    const complaintTypes = new Set();
-    const wards = new Set();
     
     // Icons for different statuses
     const icons = {
@@ -128,71 +134,44 @@
     
     // Function to add markers
     function addMarkersToMap() {
-        // Clear existing markers
-        for (let id in markers) {
-            map.removeLayer(markers[id]);
-        }
-        
-        // Get filter values
-        const typeFilter = document.getElementById('type-filter').value;
-        const statusFilter = document.getElementById('status-filter').value;
-        const wardFilter = document.getElementById('ward-filter').value;
-        
         // Array to collect bounds
         const bounds = [];
-        let visibleCount = 0;
         
         // Add markers for each complaint
         complaintsData.forEach(complaint => {
-            // Apply filters
-            if ((typeFilter === 'all' || complaint.type === typeFilter) && 
-                (statusFilter === 'all' || complaint.status === statusFilter) && 
-                (wardFilter === 'all' || complaint.ward === wardFilter)) {
-                
-                // Create marker with appropriate icon
-                const marker = L.marker([complaint.lat, complaint.lng], {
-                    icon: icons[complaint.status] || icons['Pending']
-                });
-                
-                // Create popup content
-                const popupContent = `
-                    <div class="complaint-info">
-                        <h5>${complaint.type} Complaint</h5>
-                        <p><strong>Status:</strong> <span class="badge ${getStatusBadgeClass(complaint.status)}">${complaint.status}</span></p>
-                        <p><strong>Ward:</strong> ${complaint.ward}</p>
-                        <p><strong>Submitted by:</strong> ${complaint.submitted_by}</p>
-                        <p><strong>Date:</strong> ${complaint.date}</p>
-                        <a href="${complaint.url}" class="btn btn-sm btn-outline-primary">View Details</a>
-                        <a href="https://www.google.com/maps?q=${complaint.lat},${complaint.lng}" 
-                           target="_blank" class="btn btn-sm btn-outline-primary"">
-                           View on Google Maps
-                        </a>
-                    </div>
-                `;
-                
-                // Add popup to marker
-                marker.bindPopup(popupContent);
-                
-                // Add marker to map
-                marker.addTo(map);
-                
-                // Store marker for later reference
-                markers[complaint.id] = marker;
-                
-                // Add coordinates to bounds
-                bounds.push([complaint.lat, complaint.lng]);
-                
-                // Update counters
-                visibleCount++;
-                
-                // Add to filter options
-                complaintTypes.add(complaint.type);
-                wards.add(complaint.ward);
-            }
+            // Create marker with appropriate icon
+            const marker = L.marker([complaint.lat, complaint.lng], {
+                icon: icons[complaint.status] || icons['Pending']
+            });
+            
+            // Create popup content
+            const popupContent = `
+                <div class="complaint-info">
+                    <h5>${complaint.type} Complaint</h5>
+                    <p><strong>Status:</strong> <span class="badge ${getStatusBadgeClass(complaint.status)}">${complaint.status}</span></p>
+                    <p><strong>Ward:</strong> ${complaint.ward}</p>
+                    <p><strong>Submitted by:</strong> ${complaint.submitted_by}</p>
+                    <p><strong>Date:</strong> ${complaint.date}</p>
+                    <a href="${complaint.url}" class="btn btn-sm btn-outline-primary">View Details</a>
+                    <a href="https://www.google.com/maps?q=${complaint.lat},${complaint.lng}" 
+                       target="_blank" class="btn btn-sm btn-outline-primary"">
+                       View on Google Maps
+                    </a>
+                </div>
+            `;
+            
+            // Add popup to marker
+            marker.bindPopup(popupContent);
+            
+            // Add marker to map
+            marker.addTo(map);
+            
+            // Store marker for later reference
+            markers[complaint.id] = marker;
+            
+            // Add coordinates to bounds
+            bounds.push([complaint.lat, complaint.lng]);
         });
-        
-        // Update visible count
-        document.getElementById('visible-count').textContent = visibleCount;
         
         // Fit map to bounds if there are markers
         if (bounds.length > 0) {
@@ -210,39 +189,21 @@
         }
     }
     
-    // Populate filter dropdowns
-    function populateFilters() {
-        // Populate complaint types dropdown
-        const typeFilter = document.getElementById('type-filter');
-        complaintTypes.forEach(type => {
-            const option = document.createElement('option');
-            option.value = type;
-            option.textContent = type;
-            typeFilter.appendChild(option);
-        });
-        
-        // Populate wards dropdown
-        const wardFilter = document.getElementById('ward-filter');
-        wards.forEach(ward => {
-            const option = document.createElement('option');
-            option.value = ward;
-            option.textContent = ward;
-            wardFilter.appendChild(option);
-        });
-    }
-    
     // Initialize the map when the page loads
     document.addEventListener('DOMContentLoaded', function() {
-        // Add all markers initially
+        // Add all markers
         addMarkersToMap();
         
-        // Populate filters
-        populateFilters();
-        
-        // Set up filter event listeners
-        document.getElementById('type-filter').addEventListener('change', addMarkersToMap);
-        document.getElementById('status-filter').addEventListener('change', addMarkersToMap);
-        document.getElementById('ward-filter').addEventListener('change', addMarkersToMap);
+        // Set up filter form auto-submit
+        document.getElementById('type-filter').addEventListener('change', function() {
+            document.getElementById('filter-form').submit();
+        });
+        document.getElementById('status-filter').addEventListener('change', function() {
+            document.getElementById('filter-form').submit();
+        });
+        document.getElementById('ward-filter').addEventListener('change', function() {
+            document.getElementById('filter-form').submit();
+        });
     });
 </script>
 {% endblock %}
