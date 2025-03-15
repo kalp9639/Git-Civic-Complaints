@@ -2,6 +2,7 @@
 {% extends 'base.html' %}
 {% block title %}Your Complaints - Civic Complaints System{% endblock %}
 {% block content %}
+{% load static %}<link rel="stylesheet" href="{% static 'css/style.css' %}">
 
 
 <div class="container mt-10">
@@ -55,9 +56,28 @@
       <div class="card h-100">
         <div class="card-header bg-{{ complaint.status|lower|cut:' ' }}-subtle d-flex justify-content-between align-items-center">
           <h5 class="mb-0">{{ complaint.get_complaint_type_display }}</h5>
-          <span class="badge {% if complaint.status == 'Pending' %}bg-danger{% elif complaint.status == 'In Progress' %}bg-primary{% else %}bg-success{% endif %}">
-            {{ complaint.status }}
-          </span>
+          <div class="d-flex align-items-center">
+            <span class="badge {% if complaint.status == 'Pending' %}bg-danger{% elif complaint.status == 'In Progress' %}bg-primary{% else %}bg-success{% endif %} me-3">
+              {{ complaint.status }}
+            </span>
+            <div class="dropdown">
+              <button class="btn btn-sm p-0 border-0 bg-transparent three-dot-btn" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <i class="bi bi-three-dots"></i>
+              </button>
+              <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                  <button class="dropdown-item" onclick="copyComplaintLink('{% url 'complaint_detail' complaint.pk %}')">
+                    <i class="bi bi-share me-2"></i> Share
+                  </button>
+                </li>
+                <li>
+                  <button class="dropdown-item text-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ complaint.pk }}">
+                    <i class="bi bi-trash me-2"></i> Delete
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
         {% if complaint.image %}
         <img src="{{ complaint.image.url }}" class="card-img-top" alt="{{ complaint.get_complaint_type_display }} issue" style="height: 200px; object-fit: cover;">
@@ -80,6 +100,28 @@
           <div class="d-flex justify-content-between align-items-center">
             <small class="text-muted">{{ complaint.created_at|date:"F j, Y, g:i a" }}</small>
             <a href="{% url 'complaint_detail' complaint.pk %}" class="btn btn-sm btn-outline-primary">View Details</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal{{ complaint.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ complaint.pk }}" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deleteModalLabel{{ complaint.pk }}">Confirm Deletion</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            Are you sure you want to delete this {{ complaint.get_complaint_type_display }} complaint? This action cannot be undone.
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <form action="{% url 'delete_complaint' complaint.pk %}" method="post">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-danger">Delete</button>
+            </form>
           </div>
         </div>
       </div>
@@ -146,5 +188,18 @@
       document.getElementById('filter-form').submit();
     });
   });
+
+  function copyComplaintLink(url) {
+    const completeUrl = window.location.origin + url;
+    navigator.clipboard.writeText(completeUrl).then(
+      function() {
+        // Show a temporary toast or alert
+        alert('Link copied to clipboard!');
+      }, 
+      function() {
+        alert('Failed to copy link');
+      }
+    );
+  }
 </script>
 {% endblock %}

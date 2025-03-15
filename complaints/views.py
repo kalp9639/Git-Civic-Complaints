@@ -1,12 +1,13 @@
 # complaints/views.py
 
 from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponseRedirect
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.contrib import messages
 from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView
-from django.urls import reverse_lazy
+from django.urls import reverse_lazy, reverse
 from .models import Complaint
 from .forms import ComplaintForm
 import geopandas as gpd
@@ -283,3 +284,23 @@ class ComplaintUpdateView(UpdateView):
         complaint.save()
         messages.success(self.request, 'Your complaint has been updated successfully!')
         return super().form_valid(form)
+
+# Add this to complaints/views.py
+@method_decorator(login_required, name='dispatch')
+class ComplaintDeleteView(View):
+    def post(self, request, *args, **kwargs):
+        complaint = get_object_or_404(Complaint, pk=kwargs['pk'])
+        
+        # Ensure the user is the owner of the complaint
+        if complaint.user != request.user:
+            messages.error(request, "You do not have permission to delete this complaint.")
+            return HttpResponseRedirect(reverse('view_complaints'))
+        
+        # Store complaint type for success message
+        complaint_type = complaint.get_complaint_type_display()
+        
+        # Delete the complaint
+        complaint.delete()
+        
+        messages.success(request, f"Your {complaint_type} complaint has been deleted successfully.")
+        return HttpResponseRedirect(reverse('view_complaints'))
