@@ -141,5 +141,5 @@ LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
 
 # Complaint Submission Throttling Config
-COMPLAINT_SUBMISSION_LIMIT = 3  # Number of complaints allowed
-COMPLAINT_TIME_WINDOW = 5  # Time window in minutes
+COMPLAINT_SUBMISSION_LIMIT = 1  # Number of complaints allowed
+COMPLAINT_TIME_WINDOW = 1  # Time window in minutes

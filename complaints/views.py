@@ -4,6 +4,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseRedirect
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 from django.contrib import messages
 from django.views import View
 from django.views.generic import ListView, DetailView, CreateView, UpdateView
@@ -91,7 +92,7 @@ class ComplaintListView(ListView):
     paginate_by = 9  # Show 9 complaints per page (3 rows of 3)
     
     def get_queryset(self):
-        queryset = Complaint.objects.filter(user=self.request.user)
+        queryset = Complaint.objects.filter(user=self.request.user, is_trashed=False)
         
         # Apply filters if provided
         complaint_type = self.request.GET.get('type')
@@ -285,7 +286,6 @@ class ComplaintUpdateView(UpdateView):
         messages.success(self.request, 'Your complaint has been updated successfully!')
         return super().form_valid(form)
 
-# Add this to complaints/views.py
 @method_decorator(login_required, name='dispatch')
 class ComplaintDeleteView(View):
     def post(self, request, *args, **kwargs):
@@ -304,3 +304,90 @@ class ComplaintDeleteView(View):
         
         messages.success(request, f"Your {complaint_type} complaint has been deleted successfully.")
         return HttpResponseRedirect(reverse('view_complaints'))
+
+#New views for trash functionality
+
+@method_decorator(login_required, name='dispatch')
+class ComplaintTrashView(View):
+    def post(self, request, *args, **kwargs):
+        complaint = get_object_or_404(Complaint, pk=kwargs['pk'])
+        
+        # Ensure the user is the owner of the complaint
+        if complaint.user != request.user:
+            messages.error(request, "You do not have permission to trash this complaint.")
+            return HttpResponseRedirect(reverse('view_complaints'))
+        
+        # Move to trash
+        complaint.is_trashed = True
+        complaint.trashed_at = timezone.now()
+        complaint.save()
+        
+        messages.success(request, f"Your {complaint.get_complaint_type_display()} complaint has been moved to trash.")
+        return HttpResponseRedirect(reverse('view_complaints'))
+
+
+@method_decorator(login_required, name='dispatch')
+class ComplaintRestoreView(View):
+    def post(self, request, *args, **kwargs):
+        complaint = get_object_or_404(Complaint, pk=kwargs['pk'])
+        
+        # Ensure the user is the owner of the complaint
+        if complaint.user != request.user:
+            messages.error(request, "You do not have permission to restore this complaint.")
+            return HttpResponseRedirect(reverse('trash_bin'))
+        
+        # Restore from trash
+        complaint.is_trashed = False
+        complaint.trashed_at = None
+        complaint.save()
+        
+        messages.success(request, f"Your {complaint.get_complaint_type_display()} complaint has been restored.")
+        return HttpResponseRedirect(reverse('trash_bin'))
+
+
+@method_decorator(login_required, name='dispatch')
+class TrashBinView(ListView):
+    model = Complaint
+    template_name = 'complaints/trash_bin.html'
+    context_object_name = 'trashed_complaints'
+    paginate_by = 9
+    
+    def get_queryset(self):
+        return Complaint.objects.filter(user=self.request.user, is_trashed=True)
+
+
+# Update existing ComplaintDeleteView to handle permanent deletion
+@method_decorator(login_required, name='dispatch')
+class ComplaintDeleteView(View):
+    def post(self, request, *args, **kwargs):
+        complaint = get_object_or_404(Complaint, pk=kwargs['pk'])
+        
+        # Ensure the user is the owner of the complaint
+        if complaint.user != request.user:
+            messages.error(request, "You do not have permission to delete this complaint.")
+            return HttpResponseRedirect(reverse('trash_bin'))
+        
+        # Store complaint type for success message
+        complaint_type = complaint.get_complaint_type_display()
+        
+        # Delete the complaint
+        complaint.delete()
+        
+        messages.success(request, f"Your {complaint_type} complaint has been permanently deleted.")
+        return HttpResponseRedirect(reverse('trash_bin'))
+
+@method_decorator(login_required, name='dispatch')
+class EmptyTrashView(View):
+    def post(self, request, *args, **kwargs):
+        # Get all trashed complaints for this user
+        trashed_complaints = Complaint.objects.filter(user=request.user, is_trashed=True)
+        count = trashed_complaints.count()
+        
+        if count > 0:
+            # Delete all trashed complaints
+            trashed_complaints.delete()
+            messages.success(request, f"Successfully deleted {count} complaints from trash.")
+        else:
+            messages.info(request, "Trash bin was already empty.")
+            
+        return HttpResponseRedirect(reverse('trash_bin'))
