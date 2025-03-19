@@ -50,6 +50,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "complaints.middleware.ComplaintThrottleMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
@@ -138,3 +139,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
+
+# Complaint Submission Throttling Config
+COMPLAINT_SUBMISSION_LIMIT = 3  # Number of complaints allowed
+COMPLAINT_TIME_WINDOW = 5  # Time window in minutes
