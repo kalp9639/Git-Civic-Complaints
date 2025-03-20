@@ -7,7 +7,7 @@ from datetime import timedelta
 from .models import Complaint
 import logging
 
-logger = logging.getLogger(__name__)  # Get a logger instance
+logger = logging.getLogger('complaints')
 
 @shared_task
 def delete_old_trashed_complaints():
@@ -39,4 +39,4 @@ def delete_old_trashed_complaints():
         except Exception as e:
             logger.exception(f"Error deleting complaint ID {complaint.id}")
 
-    return f"Deleted {count} complaints from trash that were older than {settings.TRASH_AUTO_DELETE_AFTER} minutes"
+    return f"Deleted {count} complaints from trash that were older than 7 days"
