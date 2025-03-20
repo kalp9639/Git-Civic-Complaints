@@ -145,7 +145,7 @@ CELERY_TIMEZONE = 'Asia/Kolkata'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # Trash auto-delete configuration (in minutes)
-TRASH_AUTO_DELETE_AFTER = 1  # Later you can change this to: 7 * 24 * 60  # 7 days in minutes
+TRASH_AUTO_DELETE_AFTER = 7 * 24 * 60 
 
 WARD_BOUNDARY_KMZ_PATH = os.path.join(BASE_DIR, 'util', 'Ward_Boundary.kmz')
 

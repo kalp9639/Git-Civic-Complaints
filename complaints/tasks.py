@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)  # Get a logger instance
 @shared_task
 def delete_old_trashed_complaints():
     # Calculate the cutoff time based on settings
-    cutoff_time = timezone.now() - timedelta(minutes=settings.TRASH_AUTO_DELETE_AFTER)
+    cutoff_time = timezone.now() - timedelta(days=7)
 
     # Find complaints that have been in trash longer than the cutoff time
     old_complaints = Complaint.objects.filter(

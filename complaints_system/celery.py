@@ -21,7 +21,7 @@ app.autodiscover_tasks()
 app.conf.beat_schedule = {
     'delete-old-trashed-complaints': {
         'task': 'complaints.tasks.delete_old_trashed_complaints',
-        'schedule': settings.TRASH_AUTO_DELETE_AFTER * 60.0,  # Run every TRASH_AUTO_DELETE_AFTER minutes
+        'schedule': crontab(hour=3, minute=0),  # Run at 3 AM every day
     },
 }
 
