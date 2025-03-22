@@ -34,7 +34,7 @@ def delete_old_trashed_complaints():
                 logger.info(f"Deleting image at: {complaint.image.path}")
 
             # This will call the custom delete() method in the model
-            complaint.delete()
+            complaint.soft_delete()
             logger.info(f"Successfully deleted complaint ID: {complaint.id}")
         except Exception as e:
             logger.exception(f"Error deleting complaint ID {complaint.id}")

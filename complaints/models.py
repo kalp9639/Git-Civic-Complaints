@@ -26,9 +26,13 @@ class Complaint(models.Model):
 
     latitude = models.FloatField(null=True, blank=True)
     longitude = models.FloatField(null=True, blank=True)
-    ward_number = models.CharField(max_length=50, null=True, blank=True)     
+    ward_number = models.CharField(max_length=50, null=True, blank=True) 
+
     is_trashed = models.BooleanField(default=False)
     trashed_at = models.DateTimeField(null=True, blank=True)
+
+    is_permanently_deleted = models.BooleanField(default=False)
+    permanently_deleted_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']
@@ -36,6 +40,13 @@ class Complaint(models.Model):
     def __str__(self):
         return f"{self.get_complaint_type_display()} complaint by {self.user.username}"
     
+    def soft_delete(self):
+        """Mark complaint as permanently deleted instead of actual deletion."""
+        self.is_permanently_deleted = True
+        self.permanently_deleted_at = timezone.now()
+        self.save()
+
+    '''
     def delete(self, *args, **kwargs):
         # Delete the image file from the file system
         if self.image and os.path.isfile(self.image.path):
@@ -43,3 +54,4 @@ class Complaint(models.Model):
             
         # Call the parent class's delete method to delete the model instance
         super().delete(*args, **kwargs)
+    '''
