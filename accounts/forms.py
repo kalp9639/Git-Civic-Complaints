@@ -3,6 +3,10 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, PasswordResetForm, SetPasswordForm
 from django.contrib.auth.models import User
+from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
+from django.contrib.auth.tokens import default_token_generator
 
 class SignUpForm(UserCreationForm):
     email = forms.EmailField(max_length=254, required=True, help_text='Required. Enter a valid email address.')
@@ -65,30 +69,46 @@ class PasswordChangeForm(forms.Form):
             self.user.save()
         return self.user
 
-class UsernamePasswordResetForm(forms.Form):
-    """
-    Form for requesting a password reset using username instead of email
-    """
-    username = forms.CharField(
-        label="Username",
-        max_length=150,
-        widget=forms.TextInput(attrs={'class': 'form-control'}),
-        help_text="Enter your username and we'll send an email to the address associated with your account."
-    )
-    
-    def clean_username(self):
-        username = self.cleaned_data['username']
-        user = User.objects.filter(username=username).first()
+class UsernameOrEmailPasswordResetForm(PasswordResetForm):
+    def clean_email(self):
+        User = get_user_model()
+        email = self.cleaned_data['email']
         
-        if not user:
-            raise forms.ValidationError("We couldn't find an account with that username.")
+        # Check if the user exists with this email
+        if not User.objects.filter(email__iexact=email, is_active=True).exists():
+            # Don't raise an error - silently accept non-existent emails
+            # This is for security to prevent user enumeration
+            pass
+            
+        return email
         
-        if not user.email:
-            raise forms.ValidationError("This account doesn't have an email address.")
+    def save(self, domain_override=None, subject_template_name='registration/password_reset_subject.txt',
+             email_template_name='registration/password_reset_email.html',
+             use_https=False, token_generator=default_token_generator,
+             from_email=None, request=None, html_email_template_name=None,
+             extra_email_context=None):
+        """
+        Generate a one-use only link for resetting password and send it to the
+        user. This overrides the parent method to properly handle non-existent
+        emails silently.
+        """
+        email = self.cleaned_data["email"]
+        User = get_user_model()
         
-        # Store the user object for later use in the view
-        self.user_cache = user
-        return username
+        # Check if active users exist with this email
+        active_users = User.objects.filter(email__iexact=email, is_active=True)
+        
+        if active_users.exists():
+            # Only proceed with email sending if users actually exist
+            for user in active_users:
+                # Store the found user for reference
+                self.user_cache = user
+                # Let the parent class handle the actual email sending
+                super().save(
+                    domain_override, subject_template_name, email_template_name,
+                    use_https, token_generator, from_email, request,
+                    html_email_template_name, extra_email_context
+                )
 
 class CustomSetPasswordForm(SetPasswordForm):
     """

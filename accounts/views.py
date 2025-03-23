@@ -12,14 +12,17 @@ from django.contrib.auth.models import User
 from .forms import SignUpForm, UserUpdateForm
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth import update_session_auth_hash
-from .forms import SignUpForm, UserUpdateForm, PasswordChangeForm, UsernamePasswordResetForm, CustomSetPasswordForm
+from .forms import SignUpForm, UserUpdateForm, PasswordChangeForm, UsernameOrEmailPasswordResetForm, CustomSetPasswordForm
 from .models import UserProfile
 
+from django.conf import settings 
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from django.utils.html import strip_tags
+from django.core.mail import EmailMultiAlternatives
 
 class HomeView(TemplateView):
     template_name = 'accounts/home.html'
@@ -190,9 +193,11 @@ class LogoutView(View):
 
 # email verification views
 
-class UsernamePasswordResetView(View):
+# Replace your UsernameOrEmailPasswordResetView with this version
+
+class UsernameOrEmailPasswordResetView(View):
     template_name = 'accounts/password_reset_form.html'
-    form_class = UsernamePasswordResetForm
+    form_class = UsernameOrEmailPasswordResetForm
     
     def get(self, request, *args, **kwargs):
         form = self.form_class()
@@ -202,42 +207,22 @@ class UsernamePasswordResetView(View):
         form = self.form_class(request.POST)
         
         if form.is_valid():
-            user = form.user_cache
-            token = default_token_generator.make_token(user)
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            
-            # Build the reset URL
-            reset_url = request.build_absolute_uri(
-                reverse_lazy('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
-            )
-            
-            # Create email content
-            subject = 'Password Reset for Civic Complaints System'
-            email_template_name = 'accounts/password_reset_email.html'
-            
-            context = {
-                'user': user,
-                'domain': request.get_host(),
-                'uid': uid,
-                'token': token,
-                'protocol': 'https' if request.is_secure() else 'http',
-                'reset_url': reset_url,
+            # This is critical - don't send emails yourself, use Django's built-in password reset
+            # Django's PasswordResetForm handles sending emails properly
+            opts = {
+                'use_https': request.is_secure(),
+                'token_generator': default_token_generator,
+                'from_email': settings.DEFAULT_FROM_EMAIL,
+                'subject_template_name': 'accounts/password_reset_subject.txt',
+                'html_email_template_name': 'accounts/password_reset_email.html',
+                'request': request,
             }
+            # Let Django handle the email sending
+            form.save(**opts)
             
-            email_message = render_to_string(email_template_name, context)
-            
-            # Send the email
-            send_mail(
-                subject,
-                email_message,
-                None,  # From email (uses DEFAULT_FROM_EMAIL from settings)
-                [user.email],
-                fail_silently=False,
-            )
-            
-            # Redirect to the done page
+            # Always redirect to success page
             return redirect('password_reset_done')
-            
+        
         return render(request, self.template_name, {'form': form})
 
 class CustomPasswordResetDoneView(View):
