@@ -33,6 +33,9 @@ INSTALLED_APPS = [
     "django_celery_beat",
 ]
 
+SESSION_COOKIE_AGE = 604800  # 1 week
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Default behavior unless remember me is checked
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -177,7 +180,7 @@ LOGGING = {
         },
     },
     'loggers': {
-        'complaints': {  # This matches your app name
+        'complaints': {  
             'handlers': ['file', 'console'],
             'level': 'INFO',
             'propagate': True,

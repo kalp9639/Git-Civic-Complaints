@@ -17,7 +17,7 @@ from .models import UserProfile
 
 
 class HomeView(TemplateView):
-    template_name = 'home.html'
+    template_name = 'accounts/home.html'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -29,7 +29,7 @@ class HomeView(TemplateView):
 
 
 class SignUpView(FormView):
-    template_name = 'signup.html'
+    template_name = 'accounts/signup.html'
     form_class = SignUpForm
     success_url = '/'  # Redirect to home page on success
     
@@ -74,7 +74,7 @@ class ProfileView(View):
             return redirect('authorities:authority_dashboard')
         else:
             # Normal users see their profile with complaint options
-            return render(request, 'profile.html', {'user': request.user})
+            return render(request, 'accounts/profile.html', {'user': request.user})
 
 
 # Add a new view for profile editing
@@ -90,7 +90,7 @@ class ProfileEditView(View):
         form.initial['mobile_number'] = profile.mobile_number
         
         password_form = PasswordChangeForm(user=request.user)
-        return render(request, 'edit_profile.html', {
+        return render(request, 'accounts/edit_profile.html', {
             'form': form,
             'password_form': password_form
         })
@@ -126,7 +126,7 @@ class ProfileEditView(View):
                 messages.success(request, 'Your password has been changed successfully.')
                 return redirect('profile')
         
-        return render(request, 'edit_profile.html', {
+        return render(request, 'accounts/edit_profile.html', {
             'form': form,
             'password_form': password_form
         })
@@ -148,11 +148,11 @@ class HomeRedirectView(View):
     def get(self, request, *args, **kwargs):
         if hasattr(request.user, 'official_profile'):
             return redirect('authorities:authority_dashboard')
-        return render(request, 'home.html', {'user': request.user})
+        return render(request, 'accounts/home.html', {'user': request.user})
 
 
 class CustomLoginView(LoginView):
-    template_name = 'login.html'
+    template_name = 'accounts/login.html'
     
     def dispatch(self, request, *args, **kwargs):
         # If user is already authenticated, log them out first
@@ -169,7 +169,3 @@ class LogoutView(View):
         return redirect('login')
 
 
-class UsersListView(ListView):
-    model = User
-    template_name = 'users.html'
-    context_object_name = 'users'

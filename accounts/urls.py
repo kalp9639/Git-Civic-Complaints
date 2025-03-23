@@ -8,6 +8,5 @@ urlpatterns = [
     path('profile/edit/', views.ProfileEditView.as_view(), name='edit_profile'),
     path('login/', views.CustomLoginView.as_view(), name='login'),
     path('logout/', views.LogoutView.as_view(), name='logout'),
-    path('users/', views.UsersListView.as_view(), name='users'),
     path('home/', views.HomeRedirectView.as_view(), name='home_view'),
 ]

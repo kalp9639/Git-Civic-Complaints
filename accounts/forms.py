@@ -1,7 +1,7 @@
 # accounts/forms.py
 
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth.models import User
 
 class SignUpForm(UserCreationForm):
@@ -34,7 +34,6 @@ class UserUpdateForm(forms.ModelForm):
                 raise forms.ValidationError('A user with that username already exists.')
         return username
 
-# Add this for password change functionality
 class PasswordChangeForm(forms.Form):
     old_password = forms.CharField(widget=forms.PasswordInput(), label="Current Password")
     new_password1 = forms.CharField(widget=forms.PasswordInput(), label="New Password")
