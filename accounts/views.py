@@ -76,6 +76,21 @@ class ProfileView(View):
             # Normal users see their profile with complaint options
             return render(request, 'accounts/profile.html', {'user': request.user})
 
+    def form_valid(self, form):
+        """Override form_valid to handle the remember me checkbox"""
+        # Call the parent class's form_valid method which will set the cookie
+        response = super().form_valid(form)
+        
+        # Check if the remember me checkbox is checked
+        if self.request.POST.get('remember_me', None) != 'on':
+            # If remember me is not checked, set session to expire when browser closes
+            self.request.session.set_expiry(0)
+        else:
+            # If remember me is checked, use the longer session
+            # The session length is determined by SESSION_COOKIE_AGE in settings.py
+            self.request.session.set_expiry(None)
+            
+        return response
 
 # Add a new view for profile editing
 @method_decorator(login_required, name='dispatch')
