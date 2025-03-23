@@ -7,14 +7,19 @@ from django.utils.decorators import method_decorator
 from django.contrib import messages
 from django.views import View
 from django.views.generic import FormView, TemplateView, ListView
-from django.contrib.auth.views import LoginView
+from django.contrib.auth.views import LoginView, PasswordResetView, PasswordResetDoneView, PasswordResetConfirmView, PasswordResetCompleteView
 from django.contrib.auth.models import User
 from .forms import SignUpForm, UserUpdateForm
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth import update_session_auth_hash
-from .forms import SignUpForm, UserUpdateForm, PasswordChangeForm
+from .forms import SignUpForm, UserUpdateForm, PasswordChangeForm, UsernamePasswordResetForm, CustomSetPasswordForm
 from .models import UserProfile
 
+from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
 class HomeView(TemplateView):
     template_name = 'accounts/home.html'
@@ -183,4 +188,68 @@ class LogoutView(View):
         logout(request)
         return redirect('login')
 
+# email verification views
 
+class UsernamePasswordResetView(View):
+    template_name = 'accounts/password_reset_form.html'
+    form_class = UsernamePasswordResetForm
+    
+    def get(self, request, *args, **kwargs):
+        form = self.form_class()
+        return render(request, self.template_name, {'form': form})
+    
+    def post(self, request, *args, **kwargs):
+        form = self.form_class(request.POST)
+        
+        if form.is_valid():
+            user = form.user_cache
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            
+            # Build the reset URL
+            reset_url = request.build_absolute_uri(
+                reverse_lazy('password_reset_confirm', kwargs={'uidb64': uid, 'token': token})
+            )
+            
+            # Create email content
+            subject = 'Password Reset for Civic Complaints System'
+            email_template_name = 'accounts/password_reset_email.html'
+            
+            context = {
+                'user': user,
+                'domain': request.get_host(),
+                'uid': uid,
+                'token': token,
+                'protocol': 'https' if request.is_secure() else 'http',
+                'reset_url': reset_url,
+            }
+            
+            email_message = render_to_string(email_template_name, context)
+            
+            # Send the email
+            send_mail(
+                subject,
+                email_message,
+                None,  # From email (uses DEFAULT_FROM_EMAIL from settings)
+                [user.email],
+                fail_silently=False,
+            )
+            
+            # Redirect to the done page
+            return redirect('password_reset_done')
+            
+        return render(request, self.template_name, {'form': form})
+
+class CustomPasswordResetDoneView(View):
+    template_name = 'accounts/password_reset_done.html'
+    
+    def get(self, request, *args, **kwargs):
+        return render(request, self.template_name)
+
+class CustomPasswordResetConfirmView(PasswordResetConfirmView):
+    template_name = 'accounts/password_reset_confirm.html'
+    success_url = reverse_lazy('password_reset_complete')
+    form_class = CustomSetPasswordForm
+
+class CustomPasswordResetCompleteView(PasswordResetCompleteView):
+    template_name = 'accounts/password_reset_complete.html'

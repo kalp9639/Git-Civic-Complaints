@@ -132,6 +132,15 @@ LOGOUT_REDIRECT_URL = 'login'
 
 WARD_BOUNDARY_KMZ_PATH = os.path.join(BASE_DIR, 'util', 'Ward_Boundary.kmz')
 
+# Email configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'  # Or your email service provider
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'kalp9639@gmail.com' # Replace with your email
+EMAIL_HOST_PASSWORD = 'iswr evez ffro gipv'  # Replace with your app password
+DEFAULT_FROM_EMAIL = 'Civic Complaints System <kalp9639@gmail.com>'
+
 # Complaint Submission Throttling Config
 COMPLAINT_SUBMISSION_LIMIT = 3  # Number of complaints allowed
 COMPLAINT_TIME_WINDOW = 5  # Time window in minutes

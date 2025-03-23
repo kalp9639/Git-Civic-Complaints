@@ -1,7 +1,7 @@
 # accounts/forms.py
 
 from django import forms
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, PasswordResetForm, SetPasswordForm
 from django.contrib.auth.models import User
 
 class SignUpForm(UserCreationForm):
@@ -64,3 +64,43 @@ class PasswordChangeForm(forms.Form):
         if commit:
             self.user.save()
         return self.user
+
+class UsernamePasswordResetForm(forms.Form):
+    """
+    Form for requesting a password reset using username instead of email
+    """
+    username = forms.CharField(
+        label="Username",
+        max_length=150,
+        widget=forms.TextInput(attrs={'class': 'form-control'}),
+        help_text="Enter your username and we'll send an email to the address associated with your account."
+    )
+    
+    def clean_username(self):
+        username = self.cleaned_data['username']
+        user = User.objects.filter(username=username).first()
+        
+        if not user:
+            raise forms.ValidationError("We couldn't find an account with that username.")
+        
+        if not user.email:
+            raise forms.ValidationError("This account doesn't have an email address.")
+        
+        # Store the user object for later use in the view
+        self.user_cache = user
+        return username
+
+class CustomSetPasswordForm(SetPasswordForm):
+    """
+    Custom form for setting a new password
+    """
+    new_password1 = forms.CharField(
+        label="New password",
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+        strip=False,
+    )
+    new_password2 = forms.CharField(
+        label="Confirm new password",
+        strip=False,
+        widget=forms.PasswordInput(attrs={'class': 'form-control'}),
+    )
